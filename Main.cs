@@ -1,42 +1,42 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Data;
 using Terraria;
-using Hooks;
 using TShockAPI;
 using TShockAPI.DB;
 using Mono.Data.Sqlite;
 using MySql.Data.MySqlClient;
+using TerrariaApi.Server;
 
-namespace GrassCut_Regions
+namespace GreenThumbRegions
 {
-    [APIVersion(1, 12)]
-    public class GrassCutRegions : TerrariaPlugin
+    [ApiVersion(1, 23)]
+    public class GreenThumbRegions : TerrariaPlugin
     {
         private static IDbConnection db;
         private static string savepath = Path.Combine(TShock.SavePath, "GrassCutRegions/");
         private static List<Region> regionList = new List<Region>();
         public override string Name
         {
-            get { return "GrassCut Regions"; }
+            get { return "GreenThumbRegions"; }
         }
         public override string Author
         {
-            get { return "by InanZen"; }
+            get { return "by InanZen, Jewsus"; }
         }
         public override string Description
         {
-            get { return "Allows grass cutting in regions"; }
+            get { return "Rewrite of InanZen's GrassCutRegions. Allows grass cutting in regions"; }
         }
         public override Version Version
         {
-            get { return new Version("1.1"); }
+            get { return new Version("1.0"); }
         }
         public override void Initialize()
         {
-            GameHooks.Update += OnUpdate;
+            ServerApi.Hooks.GameUpdate.Register(this, OnUpdate);
             GetDataHandlers.TileEdit += TileEdit;
 
             try
@@ -45,7 +45,7 @@ namespace GrassCut_Regions
                     Directory.CreateDirectory(savepath);
                 SetupDb();
             }
-            catch (Exception ex) { Log.ConsoleError(ex.ToString()); }
+            catch (Exception ex) { TShock.Log.ConsoleError(ex.ToString()); }
             Commands.ChatCommands.Add(new Command("grasscutregions", grassCutCommand, "grasscut"));
         }
         protected override void Dispose(bool disposing)
@@ -56,7 +56,7 @@ namespace GrassCut_Regions
             }
             base.Dispose(disposing);
         }
-        public GrassCutRegions(Main game)
+        public GreenThumbRegions(Main game)
             : base(game)
         {
             Order = -1;
@@ -85,7 +85,7 @@ namespace GrassCut_Regions
                 }
                 catch (MySqlException ex)
                 {
-                    Log.Error(ex.ToString());
+                    TShock.Log.Error(ex.ToString());
                     throw new Exception("MySql not setup correctly");
                 }
             }
@@ -99,11 +99,32 @@ namespace GrassCut_Regions
                  new SqlColumn("Name", MySqlDbType.VarChar, 255) { Unique = true },
                  new SqlColumn("WorldID", MySqlDbType.Int32)
              );
-            SQLcreator.EnsureExists(table);
+            SQLcreator.EnsureTableStructure(table);
         }
-        public void TileEdit(Object sender, GetDataHandlers.TileEditEventArgs args)
+        public void TileEdit(object sender, GetDataHandlers.TileEditEventArgs args)
         {
-            if ((args.EditType == 0 || args.EditType == 4) && new int[] { 3, 24, 32, 51, 52, 61, 62, 69, 71, 73, 74, 80, 82, 83, 84, 110, 113, 115, 138 }.Contains(Main.tile[args.X, args.Y].type))
+            if ((args.EditData == 0 || args.EditData == 4) && new int[]
+            {
+                3,
+                24,
+                32,
+                51,
+                52,
+                61,
+                62,
+                69,
+                71,
+                73,
+                74,
+                80,
+                82,
+                83,
+                84,
+                110,
+                113,
+                115,
+                138
+            }.Contains(Main.tile[args.X, args.Y].type))
             {
                 try
                 {
@@ -118,7 +139,7 @@ namespace GrassCut_Regions
                         }
                     }
                 }
-                catch (Exception ex) { Log.ConsoleError(ex.ToString()); }
+                catch (Exception ex) { TShock.Log.ConsoleError(ex.ToString()); }
             }
         }
         public static void grassCutCommand(CommandArgs args)
@@ -136,7 +157,7 @@ namespace GrassCut_Regions
                         {
                             if (args.Parameters.Count > 1)
                             {
-                                string regionName = String.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+                                string regionName = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
                                 var region = TShock.Regions.GetRegionByName(regionName);
                                 if (region != null && region.Name != "")
                                 {
@@ -147,7 +168,7 @@ namespace GrassCut_Regions
                                     }
                                     if (AddRegion(region))
                                     {
-                                        args.Player.SendMessage(String.Format("Region '{0}' added to GrassCut list", region.Name), Color.Green);
+                                        args.Player.SendMessage(string.Format("Region '{0}' added to GrassCut list", region.Name), Color.Green);
                                         break;
                                     }
 
@@ -164,14 +185,14 @@ namespace GrassCut_Regions
                         {
                             if (args.Parameters.Count > 1)
                             {
-                                string regionName = String.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+                                string regionName = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
                                 foreach (Region reg in regionList)
                                 {
                                     if (reg != null && reg.Name == regionName)
                                     {
                                         db.Query("DELETE FROM Regions WHERE Name = @0 AND WorldID = @1", regionName, Main.worldID);
                                         regionList.Remove(reg);
-                                        args.Player.SendMessage(String.Format("Region '{0}' removed", regionName), Color.Yellow);
+                                        args.Player.SendMessage(string.Format("Region '{0}' removed", regionName), Color.Yellow);
                                         return;
                                     }
                                 }
@@ -190,7 +211,7 @@ namespace GrassCut_Regions
                         }
                 }
             }
-            catch (Exception ex) { Log.ConsoleError(ex.ToString()); }
+            catch (Exception ex) { TShock.Log.ConsoleError(ex.ToString()); }
         }
         public static bool AddRegion(Region region)
         {
@@ -200,10 +221,10 @@ namespace GrassCut_Regions
                 regionList.Add(region);
                 return true;
             }
-            catch (Exception ex) { Log.ConsoleError(ex.ToString()); }
+            catch (Exception ex) { TShock.Log.ConsoleError(ex.ToString()); }
             return false;
         }
-        void OnUpdate()
+        void OnUpdate(EventArgs args)
         {
             if (Main.worldID != 0)
             {
@@ -218,9 +239,9 @@ namespace GrassCut_Regions
                                 regionList.Add(region);
                         }
                     }
-                    catch (Exception ex) { Log.ConsoleError(ex.ToString()); }
+                    catch (Exception ex) { TShock.Log.ConsoleError(ex.ToString()); }
                 }
-                GameHooks.Update -= OnUpdate;
+                ServerApi.Hooks.GameUpdate.Deregister(this, OnUpdate);
             }
         }
     }
